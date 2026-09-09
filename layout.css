@@ -1,0 +1,90 @@
+input[type="number"] {
+  appearance: textfield;
+}
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+
+.dashboard-header {
+  position: relative;
+  overflow: visible;
+  background: linear-gradient(135deg, #0d1b27ef, #071019f5);
+  border: 1px solid #23435b;
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+  box-shadow: inset 0 0 0 1px #78cfff08, 0 14px 35px #0008;
+}
+
+.dashboard-header::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 16px;
+  width: 90px;
+  height: 2px;
+  background: linear-gradient(90deg, #ff4d18, transparent);
+}
+
+.dashboard-header .topbar {
+  padding: 17px 21px 14px;
+  border: 0;
+  background: transparent;
+  clip-path: none;
+  box-shadow: none;
+}
+
+.header-main { min-width: 0; }
+.client-meta { display: flex; flex-wrap: wrap; gap: 7px; margin: 8px 0 0 59px; }
+.client-chip { display: inline-flex; align-items: center; gap: 5px; min-height: 25px; padding: 3px 8px; border: 1px solid #24465a; background: #06111a; color: #aac6d3; font: 10px ui-monospace, monospace; white-space: nowrap; }
+.client-chip b { color: #e0f5ff; }
+.utility-button { height: 34px; padding: 0 10px; border: 1px solid #33596d; background: #08141d; color: #b1cbd6; font: 700 10px ui-monospace, monospace; cursor: pointer; }
+.help-panel { position: absolute; z-index: 10; top: 74px; right: 20px; width: min(330px, calc(100% - 40px)); padding: 13px; border: 1px solid #345c70; background: #08131dfb; color: #b8d4df; font-size: 11px; line-height: 1.55; box-shadow: 0 12px 30px #0009; }
+.help-panel[hidden] { display: none; }
+.help-panel h3 { margin: 0 0 5px; color: #effcff; font-size: 12px; }
+.dashboard-header .summary-strip { border: 0; border-top: 1px solid #24465a; background: transparent; box-shadow: none; }
+.dashboard-header .summary-strip article { min-height: 116px; }
+.endpoint-select { width: 100%; height: 35px; padding: 0 9px; border: 1px solid #294b60; background: #050e15; color: #d8edf8; font: 12px ui-monospace, monospace; outline: 0; }
+.chart-tooltip { display: none; position: absolute; z-index: 3; padding: 7px 9px; border: 1px solid #5d7378; background: #101719; color: #dceeee; font: 11px/1.55 ui-monospace, monospace; white-space: pre-line; pointer-events: none; box-shadow: 0 8px 18px #0008; }
+.loss-dot { background: #ef6565; box-shadow: 0 0 7px #ef6565; }
+.bottom-grid { display: grid; gap: 10px; }
+
+@media (min-width: 761px) {
+  html, body { height: 100%; overflow: hidden; }
+  .app { height: 100dvh; min-height: 0; padding: 10px; gap: 7px; }
+  .dashboard-header .topbar { padding: 10px 16px 8px; }
+  .dashboard-header h1 { font-size: 23px; }
+  .dashboard-header .brand p { font-size: 10px; }
+  .client-meta { margin: 5px 0 0 55px; gap: 5px; }
+  .client-chip { min-height: 21px; padding: 2px 6px; font-size: 9px; }
+  .dashboard-header .summary-strip article { min-height: 82px; padding: 10px 14px; }
+  .summary-strip strong { margin-top: 6px; font-size: 29px; }
+  .summary-strip p { bottom: 8px; font-size: 9px; }
+  .workspace { position: relative; z-index: 3; min-height: 0; gap: 7px; overflow: visible; }
+  .chart-panel, .side-panel { min-height: 0; padding: 11px; }
+  .chart-wrap { min-height: 0; }
+  .panel-head, .side-head { margin-bottom: 7px; }
+  .side-panel { position: relative; z-index: 5; overflow: auto; }
+  .side-panel label { margin: 7px 0; }
+  .side-panel .primary, .side-panel .secondary { position: relative; z-index: 6; }
+  .bandwidth { margin: 9px 0; padding: 7px; }
+  .rating-rules { margin: 8px 0; padding-top: 7px; }
+  .rating-rules div { margin: 3px 0; }
+  .hint { margin: 7px 1px; font-size: 9px; }
+  .bottom-grid { position: relative; z-index: 1; grid-template-columns: 1.1fr .9fr; gap: 7px; min-height: 0; }
+  .bottom-grid > .event-panel, .bottom-grid > .summary-panel { min-width: 0; height: 100%; }
+  .event-panel { padding: 9px 12px; }
+  .event-log { max-height: 58px; }
+  .event-item { padding: 5px 8px; font-size: 9px; }
+  .summary-panel { padding: 9px 12px; }
+  .summary-panel pre { max-height: 78px; overflow: auto; padding: 7px; font-size: 9px; line-height: 1.4; }
+  .summary-panel p { font-size: 10px; }
+}
+
+@media (max-width: 760px) {
+  .dashboard-header .topbar { padding: 15px; }
+  .client-meta { margin-left: 0; }
+  .dashboard-header .summary-strip article { min-height: 104px; }
+  .utility-button { display: none; }
+}
