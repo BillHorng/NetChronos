@@ -5,6 +5,7 @@ const TRUSTED_ENDPOINTS = new Set([
   'https://www.cloudflare.com/cdn-cgi/trace',
   'https://www.msftconnecttest.com/connecttest.txt'
 ]);
+const SAME_ORIGIN_ENDPOINT = 'same-origin';
 let samples = [], timer = null, running = false, sent = 0, failed = 0, consecutiveLoss = 0, range = 60, lastPoints = [];
 
 function addEvent(message, type = '') {
@@ -23,7 +24,9 @@ function diagnosticText() {
   const good = samples.filter(s => s.ok).map(s => s.value);
   const avg = average(good), jitter = average(good.slice(1).map((v, i) => Math.abs(v - good[i])));
   const loss = sent ? failed / sent * 100 : 0;
-  return ['Network Diagnostic Summary', `Time: ${new Date().toLocaleString()}`, `Grade: ${el('gradeValue').textContent} (${el('gradeLabel').textContent})`, `Current latency: ${el('currentLatency').textContent} ms`, `Average latency: ${good.length ? avg.toFixed(1) : '-'} ms`, `Jitter: ${good.length > 1 ? jitter.toFixed(1) : '-'} ms`, `Loss: ${sent ? loss.toFixed(1) : '-'}% (${failed}/${sent} probes)`, `Consecutive loss: ${consecutiveLoss}`, `Endpoint: ${el('endpoint').value || '-'}`, `Browser network: ${el('connectionType').textContent}`].join('\n');
+  const selected = el('endpoint').value;
+  const endpointLabel = selected === SAME_ORIGIN_ENDPOINT ? new URL('probe.txt', window.location.href).href : selected || '-';
+  return ['Network Diagnostic Summary', `Time: ${new Date().toLocaleString()}`, `Grade: ${el('gradeValue').textContent} (${el('gradeLabel').textContent})`, `Current latency: ${el('currentLatency').textContent} ms`, `Average latency: ${good.length ? avg.toFixed(1) : '-'} ms`, `Jitter: ${good.length > 1 ? jitter.toFixed(1) : '-'} ms`, `Loss: ${sent ? loss.toFixed(1) : '-'}% (${failed}/${sent} probes)`, `Consecutive loss: ${consecutiveLoss}`, `Endpoint: ${endpointLabel}`, `Browser network: ${el('connectionType').textContent}`].join('\n');
 }
 function updateSummary() { el('diagnosticSummary').textContent = diagnosticText(); }
 function updateNetworkInfo() {
@@ -46,7 +49,7 @@ function updateClientMeta() {
   el('clientNetwork').textContent = `${type}${downlink}`;
 }
 function updateStartAvailability() {
-  const enabled = TRUSTED_ENDPOINTS.has(el('endpoint').value) && !running;
+  const enabled = (el('endpoint').value === SAME_ORIGIN_ENDPOINT || TRUSTED_ENDPOINTS.has(el('endpoint').value)) && !running;
   el('startButton').disabled = !enabled;
   el('startButton').title = enabled ? 'Start network monitoring' : 'Select a trusted test endpoint first';
 }
@@ -92,10 +95,12 @@ async function probe() {
   if (!running) return;
   const started = performance.now(), controller = new AbortController(), timeout = setTimeout(() => controller.abort(), Number(el('timeout').value || 5) * 1000);
   try {
-    const endpoint = new URL(el('endpoint').value);
-    if (endpoint.protocol !== 'https:' || !TRUSTED_ENDPOINTS.has(endpoint.href)) throw new Error('Untrusted endpoint rejected');
+    const selectedEndpoint = el('endpoint').value;
+    const endpoint = selectedEndpoint === SAME_ORIGIN_ENDPOINT ? new URL('probe.txt', window.location.href) : new URL(selectedEndpoint);
+    if (selectedEndpoint !== SAME_ORIGIN_ENDPOINT && (endpoint.protocol !== 'https:' || !TRUSTED_ENDPOINTS.has(endpoint.href))) throw new Error('Untrusted endpoint rejected');
     endpoint.searchParams.set('_netwatch', Date.now());
-    await fetch(endpoint.href, { cache:'no-store', mode:'cors', signal:controller.signal });
+    const response = await fetch(endpoint.href, { cache:'no-store', mode:'cors', signal:controller.signal });
+    if (!response.ok) throw new Error(`Probe returned HTTP ${response.status}`);
     const value = performance.now() - started; samples.push({ok:true,value,time:Date.now()}); sent++; consecutiveLoss=0;
     if (value > 150) addEvent(`High latency: ${value.toFixed(0)} ms`, 'warn');
   } catch (error) {
@@ -106,7 +111,7 @@ async function probe() {
     if (running) timer = setTimeout(probe, Math.max(1000, Number(el('interval').value || 3) * 1000));
   }
 }
-function start() { if (running) return; if (!TRUSTED_ENDPOINTS.has(el('endpoint').value)) { addEvent('Select a trusted HTTPS endpoint before starting.', 'warn'); return; } running=true; updateStartAvailability(); el('pauseButton').disabled=false; el('statusText').textContent='Monitoring'; el('statusDot').className='live'; addEvent('Network monitoring started'); probe(); }
+function start() { if (running) return; if (el('endpoint').value !== SAME_ORIGIN_ENDPOINT && !TRUSTED_ENDPOINTS.has(el('endpoint').value)) { addEvent('Select a trusted HTTPS endpoint before starting.', 'warn'); return; } running=true; updateStartAvailability(); el('pauseButton').disabled=false; el('statusText').textContent='Monitoring'; el('statusDot').className='live'; addEvent('Network monitoring started'); probe(); }
 function pause() { running=false; clearTimeout(timer); updateStartAvailability(); el('pauseButton').disabled=true; el('statusText').textContent='Paused'; el('statusDot').className=''; addEvent('Network monitoring paused'); }
 el('startButton').onclick=start; el('pauseButton').onclick=pause;
 el('clearButton').onclick=()=>{ const empty=document.createElement('p'); empty.className='no-events'; empty.textContent='No events yet'; el('eventLog').replaceChildren(empty); };

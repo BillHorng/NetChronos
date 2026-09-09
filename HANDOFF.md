@@ -72,7 +72,7 @@ Canvas 圖表支援最近 60／120 筆樣本，包含：
 
 ## 安全與隱私控制
 
-`TRUSTED_ENDPOINTS` 是端點唯一來源。UI 採下拉選單，程式亦再次驗證：
+UI 採下拉選單，程式會再次驗證端點：
 
 - 僅允許 HTTPS。
 - 僅允許白名單中的完整網址。
@@ -80,6 +80,7 @@ Canvas 圖表支援最近 60／120 筆樣本，包含：
 
 目前白名單：
 
+- 同網域 `probe.txt`（建議）：與網站同來源，不受 CORS 限制，量測使用者到 GitHub Pages 的回應時間。
 - `https://www.gstatic.com/generate_204`
 - `https://www.cloudflare.com/cdn-cgi/trace`
 - `https://www.msftconnecttest.com/connecttest.txt`
@@ -88,7 +89,7 @@ Canvas 圖表支援最近 60／120 筆樣本，包含：
 
 ## 已知限制與後續建議
 
-- 部分端點的 CORS 政策若變更，瀏覽器會將探測視為 Loss。
+- 外部端點的 CORS 政策若變更，瀏覽器會將探測視為 Loss；正式使用應優先選擇同網域 `probe.txt`。
 - `navigator.connection` 並非所有瀏覽器支援；頻寬與連線類型可能不可用。
 - 若需要真實全網頻寬、ICMP Loss 或設備監控，需加入後端服務，並串接路由器 API、SNMP 或監測代理程式。
 - 正式環境建議設置自家 HTTPS 探測端點，減少對公開端點與第三方資料的依賴。
