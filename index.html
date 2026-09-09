@@ -15,7 +15,7 @@
           <div class="brand">
             <span class="logo" aria-hidden="true">◌</span>
             <div>
-              <div class="title-row"><h1>NetChronos</h1><span class="version">LIVE</span></div>
+              <div class="title-row"><h1>NetChronos</h1><span class="version">V1.0.1</span></div>
               <p>網路延遲、抖動、丟包與頻寬狀態監控</p>
             </div>
           </div>
@@ -34,7 +34,7 @@
       </header>
       <aside class="help-panel" id="helpPanel" hidden>
         <h3>監測說明</h3>
-        <p>選擇 HTTPS 信任端點後開始監測。延遲以圖片資源載入時間估算；Loss 代表探測失敗或逾時，不等同 ICMP 封包遺失。</p>
+        <p>選擇 HTTPS 信任端點後開始監測。延遲以圖片資源載入時間估算；Loss 代表探測失敗或逾時，不等同 ICMP 封包遺失。速度測試為手動執行，會產生大量流量並保存最近 50 次完整結果於目前瀏覽器。</p>
       </aside>
       <section class="summary-strip">
         <article><span>目前延遲</span><strong id="currentLatency">—</strong><small>ms</small><p id="latencyFoot">尚未取得樣本</p></article>
@@ -48,9 +48,12 @@
       <article class="chart-panel">
         <div class="panel-head">
           <div><h2>延遲趨勢</h2><p>每次探測的網路回應時間</p></div>
-          <div class="chart-tools">
-            <button class="active" type="button" data-range="60">最近 60 筆</button>
-            <button type="button" data-range="120">最近 120 筆</button>
+          <div class="chart-actions">
+            <button class="speedtest-trigger" id="speedTestButton" type="button">速度測試</button>
+            <div class="chart-tools">
+              <button class="active" type="button" data-range="60">最近 60 筆</button>
+              <button type="button" data-range="120">最近 120 筆</button>
+            </div>
           </div>
         </div>
         <div class="chart-wrap">
@@ -112,6 +115,51 @@
       </section>
     </section>
   </div>
+
+  <div class="speedtest-modal" id="speedTestModal" hidden>
+    <section class="speedtest-dialog" role="dialog" aria-modal="true" aria-labelledby="speedTestTitle">
+      <header class="speedtest-head">
+        <div>
+          <span class="speedtest-kicker">CLOUDFLARE NETWORK TEST</span>
+          <h2 id="speedTestTitle">網路速度測試</h2>
+        </div>
+        <button id="closeSpeedTestButton" type="button" aria-label="關閉速度測試">×</button>
+      </header>
+
+      <p class="speedtest-notice">測試會產生大量下載及上傳流量，單次最高約 117 MB。結果會由 Cloudflare 接收並用於彙總網路品質分析。</p>
+      <div class="speedtest-status"><i id="speedTestDot"></i><strong id="speedTestStatus">準備開始</strong><span id="speedTestProgress">尚無測試結果</span></div>
+
+      <div class="speedtest-current">
+        <article><span>下載速度</span><strong id="speedDownload">—</strong><small>Mbps</small></article>
+        <article><span>上傳速度</span><strong id="speedUpload">—</strong><small>Mbps</small></article>
+        <article><span>閒置延遲</span><strong id="speedLatency">—</strong><small>ms</small></article>
+        <article><span>抖動</span><strong id="speedJitter">—</strong><small>ms</small></article>
+      </div>
+
+      <section class="speedtest-peaks">
+        <h3>本次峰值</h3>
+        <div><span>下載最高</span><strong id="speedDownloadPeak">— Mbps</strong></div>
+        <div><span>上傳最高</span><strong id="speedUploadPeak">— Mbps</strong></div>
+      </section>
+
+      <section class="speedtest-history">
+        <div class="speedtest-history-head"><h3>本機歷史紀錄</h3><span id="speedHistoryCount">0 次完整測試</span></div>
+        <div class="speedtest-history-grid">
+          <article><span>下載最高</span><strong id="historyDownloadMax">—</strong><small>Mbps</small></article>
+          <article><span>下載最低</span><strong id="historyDownloadMin">—</strong><small>Mbps</small></article>
+          <article><span>上傳最高</span><strong id="historyUploadMax">—</strong><small>Mbps</small></article>
+          <article><span>上傳最低</span><strong id="historyUploadMin">—</strong><small>Mbps</small></article>
+        </div>
+      </section>
+
+      <div class="speedtest-controls">
+        <button class="primary" id="startSpeedTestButton" type="button">開始速度測試</button>
+        <button class="secondary" id="stopSpeedTestButton" type="button" disabled>停止測試</button>
+        <button class="danger" id="clearSpeedHistoryButton" type="button">清除歷史</button>
+      </div>
+    </section>
+  </div>
+
   <script src="app.js"></script>
 </body>
 </html>

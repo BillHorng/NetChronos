@@ -6,8 +6,12 @@ const TRUSTED_ENDPOINTS = new Set([
   'https://www.microsoft.com/favicon.ico'
 ]);
 const SAME_ORIGIN_ENDPOINT = 'same-origin';
+const SPEEDTEST_MODULE_URL = 'https://cdn.jsdelivr.net/npm/@cloudflare/speedtest@1.13.1/dist/speedtest.js';
+const SPEED_HISTORY_KEY = 'netchronos-speed-history-v1';
 let samples = [], timer = null, activeProbeController = null, runVersion = 0;
 let running = false, sent = 0, failed = 0, consecutiveLoss = 0, range = 60, lastPoints = [];
+let speedTestEngine = null, speedTestRunVersion = 0, speedTestRunning = false;
+let speedHistory = loadSpeedHistory(), latestSpeedResult = speedHistory.at(-1) || null;
 
 function addEvent(message, type = '') {
   const item = document.createElement('div');
@@ -27,7 +31,8 @@ function diagnosticText() {
   const loss = sent ? failed / sent * 100 : 0;
   const selected = el('endpoint').value;
   const endpointLabel = selected === SAME_ORIGIN_ENDPOINT ? new URL('probe.svg', window.location.href).href : selected || '-';
-  return ['Network Diagnostic Summary', `Time: ${new Date().toLocaleString()}`, `Grade: ${el('gradeValue').textContent} (${el('gradeLabel').textContent})`, `Current latency: ${el('currentLatency').textContent} ms`, `Average latency: ${good.length ? avg.toFixed(1) : '-'} ms`, `Jitter: ${good.length > 1 ? jitter.toFixed(1) : '-'} ms`, `Loss: ${sent ? loss.toFixed(1) : '-'}% (${failed}/${sent} probes)`, `Consecutive loss: ${consecutiveLoss}`, `Endpoint: ${endpointLabel}`, `Browser network: ${el('connectionType').textContent}`].join('\n');
+  const speedLines = latestSpeedResult ? [`Latest speed test: ${new Date(latestSpeedResult.time).toLocaleString()}`, `Download: ${latestSpeedResult.download.toFixed(1)} Mbps (peak ${latestSpeedResult.downloadPeak.toFixed(1)} Mbps)`, `Upload: ${latestSpeedResult.upload.toFixed(1)} Mbps (peak ${latestSpeedResult.uploadPeak.toFixed(1)} Mbps)`] : ['Latest speed test: -'];
+  return ['Network Diagnostic Summary', 'Version: 1.0.1', `Time: ${new Date().toLocaleString()}`, `Grade: ${el('gradeValue').textContent} (${el('gradeLabel').textContent})`, `Current latency: ${el('currentLatency').textContent} ms`, `Average latency: ${good.length ? avg.toFixed(1) : '-'} ms`, `Jitter: ${good.length > 1 ? jitter.toFixed(1) : '-'} ms`, `Loss: ${sent ? loss.toFixed(1) : '-'}% (${failed}/${sent} probes)`, `Consecutive loss: ${consecutiveLoss}`, `Endpoint: ${endpointLabel}`, `Browser network: ${el('connectionType').textContent}`, ...speedLines].join('\n');
 }
 function updateSummary() { el('diagnosticSummary').textContent = diagnosticText(); }
 function updateNetworkInfo() {
@@ -53,6 +58,175 @@ function updateStartAvailability() {
   const enabled = (el('endpoint').value === SAME_ORIGIN_ENDPOINT || TRUSTED_ENDPOINTS.has(el('endpoint').value)) && !running;
   el('startButton').disabled = !enabled;
   el('startButton').title = enabled ? 'Start network monitoring' : 'Select a trusted test endpoint first';
+}
+function loadSpeedHistory() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(SPEED_HISTORY_KEY) || '[]');
+    if (!Array.isArray(stored)) return [];
+    return stored.filter(item => Number.isFinite(item?.time) && Number.isFinite(item?.download) && item.download > 0 && Number.isFinite(item?.upload) && item.upload > 0).slice(-50).map(item => ({ ...item, downloadPeak: Number.isFinite(item.downloadPeak) ? item.downloadPeak : item.download, uploadPeak: Number.isFinite(item.uploadPeak) ? item.uploadPeak : item.upload }));
+  } catch {
+    return [];
+  }
+}
+function saveSpeedHistory() {
+  try { localStorage.setItem(SPEED_HISTORY_KEY, JSON.stringify(speedHistory)); } catch { /* Storage may be disabled. */ }
+}
+function readSpeedMetric(results, method) {
+  try {
+    const value = results?.[method]?.();
+    return Number.isFinite(value) && value >= 0 ? value : null;
+  } catch {
+    return null;
+  }
+}
+function readSpeedPoints(results, method) {
+  try {
+    const values = results?.[method]?.().map(point => Number(point?.bps)).filter(value => Number.isFinite(value) && value > 0) || [];
+    return values.length ? Math.max(...values) / 1e6 : null;
+  } catch {
+    return null;
+  }
+}
+function speedSnapshot(results) {
+  const download = readSpeedMetric(results, 'getDownloadBandwidth');
+  const upload = readSpeedMetric(results, 'getUploadBandwidth');
+  return {
+    download: download == null ? null : download / 1e6,
+    upload: upload == null ? null : upload / 1e6,
+    latency: readSpeedMetric(results, 'getUnloadedLatency'),
+    jitter: readSpeedMetric(results, 'getUnloadedJitter'),
+    downloadPeak: readSpeedPoints(results, 'getDownloadBandwidthPoints'),
+    uploadPeak: readSpeedPoints(results, 'getUploadBandwidthPoints')
+  };
+}
+function showSpeedValue(id, value, digits = 1) { el(id).textContent = value == null ? '—' : value.toFixed(digits); }
+function updateSpeedReadout(results) {
+  const snapshot = speedSnapshot(results);
+  showSpeedValue('speedDownload', snapshot.download);
+  showSpeedValue('speedUpload', snapshot.upload);
+  showSpeedValue('speedLatency', snapshot.latency, 0);
+  showSpeedValue('speedJitter', snapshot.jitter, 1);
+  el('speedDownloadPeak').textContent = snapshot.downloadPeak == null ? '— Mbps' : `${snapshot.downloadPeak.toFixed(1)} Mbps`;
+  el('speedUploadPeak').textContent = snapshot.uploadPeak == null ? '— Mbps' : `${snapshot.uploadPeak.toFixed(1)} Mbps`;
+  return snapshot;
+}
+function updateSpeedHistory() {
+  const downloads = speedHistory.map(item => item.download).filter(value => Number.isFinite(value) && value > 0);
+  const uploads = speedHistory.map(item => item.upload).filter(value => Number.isFinite(value) && value > 0);
+  showSpeedValue('historyDownloadMax', downloads.length ? Math.max(...downloads) : null);
+  showSpeedValue('historyDownloadMin', downloads.length ? Math.min(...downloads) : null);
+  showSpeedValue('historyUploadMax', uploads.length ? Math.max(...uploads) : null);
+  showSpeedValue('historyUploadMin', uploads.length ? Math.min(...uploads) : null);
+  const latest = speedHistory.at(-1);
+  el('speedHistoryCount').textContent = latest ? `${speedHistory.length} 次 · 最近 ${new Date(latest.time).toLocaleString()}` : '0 次完整測試';
+  el('clearSpeedHistoryButton').disabled = speedHistory.length === 0;
+}
+function setSpeedTestState(state, status, progress) {
+  el('speedTestDot').className = state;
+  el('speedTestStatus').textContent = status;
+  el('speedTestProgress').textContent = progress;
+  el('startSpeedTestButton').disabled = speedTestRunning;
+  el('stopSpeedTestButton').disabled = !speedTestRunning;
+}
+function resetSpeedReadout() {
+  ['speedDownload', 'speedUpload', 'speedLatency', 'speedJitter'].forEach(id => el(id).textContent = '—');
+  el('speedDownloadPeak').textContent = '— Mbps';
+  el('speedUploadPeak').textContent = '— Mbps';
+}
+function speedMeasurements() {
+  return [
+    { type: 'latency', numPackets: 10 },
+    { type: 'download', bytes: 1e5, count: 3, bypassMinDuration: true },
+    { type: 'download', bytes: 1e6, count: 3 },
+    { type: 'download', bytes: 1e7, count: 3 },
+    { type: 'download', bytes: 2.5e7, count: 1 },
+    { type: 'upload', bytes: 1e5, count: 3, bypassMinDuration: true },
+    { type: 'upload', bytes: 1e6, count: 3 },
+    { type: 'upload', bytes: 1e7, count: 3 },
+    { type: 'upload', bytes: 2.5e7, count: 1 }
+  ];
+}
+async function startSpeedTest() {
+  if (speedTestRunning) return;
+  speedTestRunning = true;
+  const version = ++speedTestRunVersion;
+  resetSpeedReadout();
+  setSpeedTestState('running', '載入測速引擎', '正在連線 Cloudflare');
+  addEvent('Cloudflare speed test started');
+  try {
+    const { default: SpeedTest } = await import(SPEEDTEST_MODULE_URL);
+    if (!speedTestRunning || version !== speedTestRunVersion) return;
+    const engine = new SpeedTest({
+      autoStart: false,
+      measurements: speedMeasurements(),
+      bandwidthFinishRequestDuration: 750,
+      bandwidthAbortRequestDuration: 10000,
+      measureDownloadLoadedLatency: false,
+      measureUploadLoadedLatency: false
+    });
+    speedTestEngine = engine;
+    engine.onResultsChange = ({ type } = {}) => {
+      if (version !== speedTestRunVersion) return;
+      updateSpeedReadout(engine.results);
+      const phase = String(type || '').toLowerCase();
+      const label = phase.includes('upload') ? '測量上傳速度' : phase.includes('download') ? '測量下載速度' : '測量延遲';
+      setSpeedTestState('running', label, '請保持此頁面開啟');
+    };
+    engine.onFinish = results => {
+      if (version !== speedTestRunVersion) return;
+      speedTestRunVersion++;
+      const snapshot = updateSpeedReadout(results);
+      speedTestRunning = false;
+      speedTestEngine = null;
+      if (snapshot.download != null && snapshot.upload != null) {
+        const record = { time: Date.now(), ...snapshot, downloadPeak: snapshot.downloadPeak ?? snapshot.download, uploadPeak: snapshot.uploadPeak ?? snapshot.upload };
+        speedHistory = [...speedHistory, record].slice(-50);
+        latestSpeedResult = record;
+        saveSpeedHistory();
+        updateSpeedHistory();
+        updateSummary();
+        setSpeedTestState('', '測試完成', `${record.download.toFixed(1)} ↓ / ${record.upload.toFixed(1)} ↑ Mbps`);
+        addEvent(`Speed test completed: ${record.download.toFixed(1)} Mbps down / ${record.upload.toFixed(1)} Mbps up`);
+      } else {
+        setSpeedTestState('failed', '測試資料不完整', '請稍後再試');
+        addEvent('Speed test finished without complete bandwidth results', 'warn');
+      }
+    };
+    engine.onError = error => {
+      if (version !== speedTestRunVersion) return;
+      speedTestRunVersion++;
+      speedTestRunning = false;
+      speedTestEngine = null;
+      setSpeedTestState('failed', '測速失敗', String(error || 'Unknown error'));
+      addEvent(`Speed test failed: ${String(error || 'Unknown error')}`, 'warn');
+    };
+    engine.play();
+  } catch (error) {
+    if (version !== speedTestRunVersion) return;
+    speedTestRunning = false;
+    speedTestEngine = null;
+    setSpeedTestState('failed', '無法載入測速引擎', error.message || 'Network error');
+    addEvent(`Speed test engine failed to load: ${error.message || 'Network error'}`, 'warn');
+  }
+}
+function stopSpeedTest() {
+  if (!speedTestRunning) return;
+  speedTestRunVersion++;
+  speedTestEngine?.pause();
+  speedTestEngine = null;
+  speedTestRunning = false;
+  setSpeedTestState('', '測試已停止', '未儲存此次結果');
+  addEvent('Cloudflare speed test stopped');
+}
+function openSpeedTest() {
+  el('speedTestModal').hidden = false;
+  document.body.classList.add('speedtest-open');
+  el('startSpeedTestButton').focus();
+}
+function closeSpeedTest() {
+  el('speedTestModal').hidden = true;
+  document.body.classList.remove('speedtest-open');
+  el('speedTestButton').focus();
 }
 function loadImageProbe(url, signal) {
   return new Promise((resolve, reject) => {
@@ -144,4 +318,11 @@ document.querySelectorAll('[data-range]').forEach(button => button.onclick=()=>{
 el('latencyChart').addEventListener('mousemove', (event) => { const canvas=el('latencyChart'), rect=canvas.getBoundingClientRect(), x=event.clientX-rect.left, point=lastPoints.reduce((nearest,p)=>!nearest||Math.abs(p.x-x)<Math.abs(nearest.x-x)?p:nearest,null), tip=el('chartTooltip'); if(!point){tip.style.display='none';return;} tip.textContent=`${point.ok ? 'LATENCY' : 'LOSS / TIMEOUT'}\n${point.ok ? `${point.value.toFixed(1)} ms` : 'No response'}\n${point.time ? new Date(point.time).toLocaleTimeString() : ''}`; tip.style.display='block'; tip.style.left=`${Math.min(rect.width-145,Math.max(8,point.x+12))}px`; tip.style.top=`${Math.max(8,point.y-55)}px`; });
 el('latencyChart').addEventListener('mouseleave', () => { el('chartTooltip').style.display='none'; });
 el('helpButton').onclick=()=>{ const panel=el('helpPanel'), open=panel.hasAttribute('hidden'); panel.toggleAttribute('hidden', !open); el('helpButton').setAttribute('aria-expanded', String(open)); };
-el('endpoint').addEventListener('change', updateStartAvailability); window.addEventListener('resize',draw); window.addEventListener('online',()=>{updateNetworkInfo();addEvent('Browser is online');}); window.addEventListener('offline',()=>{updateNetworkInfo();addEvent('Browser is offline','warn');}); net?.addEventListener?.('change',updateNetworkInfo); updateNetworkInfo(); updateStartAvailability(); updateStats(); setInterval(updateClientMeta, 1000);
+el('speedTestButton').onclick=openSpeedTest;
+el('closeSpeedTestButton').onclick=closeSpeedTest;
+el('startSpeedTestButton').onclick=startSpeedTest;
+el('stopSpeedTestButton').onclick=stopSpeedTest;
+el('clearSpeedHistoryButton').onclick=()=>{ if(!confirm('確定清除本機的速度測試歷史紀錄？')) return; speedHistory=[]; latestSpeedResult=null; saveSpeedHistory(); updateSpeedHistory(); updateSummary(); addEvent('Local speed test history cleared'); };
+el('speedTestModal').addEventListener('click', event => { if(event.target === el('speedTestModal')) closeSpeedTest(); });
+document.addEventListener('keydown', event => { if(event.key === 'Escape' && !el('speedTestModal').hidden) closeSpeedTest(); });
+el('endpoint').addEventListener('change', updateStartAvailability); window.addEventListener('resize',draw); window.addEventListener('online',()=>{updateNetworkInfo();addEvent('Browser is online');}); window.addEventListener('offline',()=>{updateNetworkInfo();addEvent('Browser is offline','warn');}); net?.addEventListener?.('change',updateNetworkInfo); updateNetworkInfo(); updateStartAvailability(); updateSpeedHistory(); updateStats(); setInterval(updateClientMeta, 1000);

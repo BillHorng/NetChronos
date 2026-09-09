@@ -46,7 +46,44 @@ input[type="number"]::-webkit-inner-spin-button {
 .endpoint-select { width: 100%; height: 35px; padding: 0 9px; border: 1px solid #294b60; background: #050e15; color: #d8edf8; font: 12px ui-monospace, monospace; outline: 0; }
 .chart-tooltip { display: none; position: absolute; z-index: 3; padding: 7px 9px; border: 1px solid #5d7378; background: #101719; color: #dceeee; font: 11px/1.55 ui-monospace, monospace; white-space: pre-line; pointer-events: none; box-shadow: 0 8px 18px #0008; }
 .loss-dot { background: #ef6565; box-shadow: 0 0 7px #ef6565; }
+.chart-actions { display: flex; align-items: center; gap: 7px; }
+.speedtest-trigger { height: 34px; padding: 0 12px; border: 1px solid #c13a1b; background: #2b1712; color: #ff9a76; font: 700 10px ui-monospace, monospace; letter-spacing: .6px; cursor: pointer; }
 .bottom-grid { display: grid; gap: 10px; }
+body.speedtest-open { overflow: hidden; }
+
+.speedtest-modal { position: fixed; z-index: 100; inset: 0; display: grid; place-items: center; padding: 18px; background: #01050bd9; backdrop-filter: blur(5px); }
+.speedtest-modal[hidden] { display: none; }
+.speedtest-dialog { position: relative; width: min(820px, 100%); max-height: calc(100dvh - 36px); overflow: auto; padding: 18px; border: 1px solid #315a70; background: linear-gradient(135deg, #0d1b27, #061019); box-shadow: 0 24px 70px #000c, inset 0 0 0 1px #78cfff08; clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px)); }
+.speedtest-dialog::before { content: ""; position: absolute; top: 0; left: 18px; width: 130px; height: 2px; background: linear-gradient(90deg, #ff4d18, transparent); }
+.speedtest-head, .speedtest-history-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.speedtest-head h2 { margin-top: 3px; font-size: 19px; }
+.speedtest-kicker { color: #ff754a; font: 700 9px ui-monospace, monospace; letter-spacing: 1.5px; }
+.speedtest-head button { width: 34px; height: 34px; border: 1px solid #345c70; background: #08141d; color: #cce7f2; font-size: 22px; cursor: pointer; }
+.speedtest-notice { margin: 12px 0; padding: 8px 10px; border-left: 3px solid #f4aa42; background: #241b0d; color: #cbb98f; font-size: 10px; line-height: 1.5; }
+.speedtest-status { display: grid; grid-template-columns: auto auto 1fr; align-items: center; gap: 7px; min-height: 32px; padding: 7px 10px; border: 1px solid #23465a; background: #06111a; font: 10px ui-monospace, monospace; }
+.speedtest-status i { width: 8px; height: 8px; border-radius: 50%; background: #527080; }
+.speedtest-status i.running { background: #46ddaa; box-shadow: 0 0 12px #46ddaa; }
+.speedtest-status i.failed { background: #ff4b43; box-shadow: 0 0 12px #ff4b43; }
+.speedtest-status span { justify-self: end; color: #7190a5; }
+.speedtest-current { display: grid; grid-template-columns: repeat(4, 1fr); margin-top: 10px; border: 1px solid #24465a; background: #07131d; }
+.speedtest-current article, .speedtest-history-grid article { min-width: 0; padding: 12px; border-right: 1px solid #1c3b4e; }
+.speedtest-current article:last-child, .speedtest-history-grid article:last-child { border-right: 0; }
+.speedtest-current span, .speedtest-history-grid span, .speedtest-peaks span { display: block; color: #7190a5; font-size: 9px; letter-spacing: .7px; }
+.speedtest-current strong, .speedtest-history-grid strong { display: inline-block; margin-top: 5px; color: #effcff; font: 700 25px ui-monospace, monospace; }
+.speedtest-current small, .speedtest-history-grid small { margin-left: 3px; color: #7190a5; font: 9px ui-monospace, monospace; }
+.speedtest-peaks { display: grid; grid-template-columns: auto 1fr 1fr; align-items: center; gap: 8px; margin-top: 10px; }
+.speedtest-peaks h3 { padding-right: 6px; color: #d9edf8; font-size: 11px; }
+.speedtest-peaks div { display: flex; justify-content: space-between; gap: 8px; padding: 8px 10px; border: 1px solid #24465a; background: #06111a; }
+.speedtest-peaks strong { color: #75dcff; font: 700 11px ui-monospace, monospace; }
+.speedtest-history { margin-top: 10px; padding-top: 10px; border-top: 1px solid #24465a; }
+.speedtest-history-head h3 { font-size: 11px; }
+.speedtest-history-head span { color: #7190a5; font: 9px ui-monospace, monospace; }
+.speedtest-history-grid { display: grid; grid-template-columns: repeat(4, 1fr); margin-top: 7px; border: 1px solid #24465a; background: #06111a; }
+.speedtest-history-grid strong { font-size: 18px; }
+.speedtest-controls { display: grid; grid-template-columns: 1fr 1fr auto; gap: 7px; margin-top: 12px; }
+.speedtest-controls button { width: auto; height: 36px; margin: 0; }
+.speedtest-controls .danger { padding: 0 12px; border: 1px solid #754034; background: #21120f; color: #d78870; font: 700 10px ui-monospace, monospace; cursor: pointer; }
+.speedtest-controls .danger:disabled { cursor: not-allowed; }
 
 @media (min-width: 761px) {
   html, body { height: 100%; overflow: hidden; }
@@ -101,4 +138,17 @@ input[type="number"]::-webkit-inner-spin-button {
   .client-meta { margin-left: 0; }
   .dashboard-header .summary-strip article { min-height: 104px; }
   .utility-button { display: none; }
+  .chart-actions { align-items: stretch; flex-direction: column; }
+  .speedtest-trigger { height: 30px; }
+  .speedtest-modal { align-items: start; padding: 8px; }
+  .speedtest-dialog { max-height: calc(100dvh - 16px); padding: 14px; }
+  .speedtest-status { grid-template-columns: auto 1fr; }
+  .speedtest-status span { grid-column: 1 / -1; justify-self: start; }
+  .speedtest-current, .speedtest-history-grid { grid-template-columns: 1fr 1fr; }
+  .speedtest-current article:nth-child(2), .speedtest-history-grid article:nth-child(2) { border-right: 0; }
+  .speedtest-current article:nth-child(-n+2), .speedtest-history-grid article:nth-child(-n+2) { border-bottom: 1px solid #1c3b4e; }
+  .speedtest-peaks { grid-template-columns: 1fr 1fr; }
+  .speedtest-peaks h3 { grid-column: 1 / -1; }
+  .speedtest-controls { grid-template-columns: 1fr 1fr; }
+  .speedtest-controls .danger { grid-column: 1 / -1; }
 }
