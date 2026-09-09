@@ -77,16 +77,12 @@
 
       <aside class="side-panel">
         <div class="side-head"><h2>監測設定</h2><button id="resetButton" type="button">重設</button></div>
-        <label>測試網站
-          <select id="endpoint" class="endpoint-select">
-            <option value="" selected disabled>請選擇測試網站</option>
-          </select>
-        </label>
-        <div class="two-fields">
-          <label>探測間隔<input id="interval" type="number" min="1" max="60" value="3"><small>秒</small></label>
-          <label>逾時時間<input id="timeout" type="number" min="1" max="30" value="5"><small>秒</small></label>
-        </div>
-        <div class="connection-fields">
+        <div class="selector-fields">
+          <label>測試網站
+            <select id="endpoint" class="endpoint-select">
+              <option value="" selected disabled>請選擇測試網站</option>
+            </select>
+          </label>
           <label>連線識別
             <select id="connectionProfile" class="endpoint-select">
               <option value="auto">自動偵測</option>
@@ -95,9 +91,13 @@
               <option value="wifi">Wi-Fi</option>
             </select>
           </label>
-          <label id="ssidField" hidden>Wi-Fi SSID
+          <label class="ssid-field" id="ssidField" hidden>Wi-Fi SSID
             <input id="ssidName" type="text" maxlength="32" autocomplete="off" placeholder="請自行輸入 SSID">
           </label>
+        </div>
+        <div class="two-fields">
+          <label>探測間隔<input id="interval" type="number" min="1" max="60" value="3"><small>秒</small></label>
+          <label>逾時時間<input id="timeout" type="number" min="1" max="30" value="5"><small>秒</small></label>
         </div>
         <div class="bandwidth">
           <div><span>下行頻寬預估</span><strong id="downlink">偵測中</strong></div>
