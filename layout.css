@@ -38,12 +38,18 @@ input[type="number"]::-webkit-inner-spin-button {
 .client-meta { display: flex; flex-wrap: wrap; gap: 7px; margin: 8px 0 0 59px; }
 .client-chip { display: inline-flex; align-items: center; gap: 5px; min-height: 25px; padding: 3px 8px; border: 1px solid #24465a; background: #06111a; color: #aac6d3; font: 10px ui-monospace, monospace; white-space: nowrap; }
 .client-chip b { color: #e0f5ff; }
+.chip-action { margin-left: 2px; padding: 1px 4px; border: 0; border-left: 1px solid #24465a; background: transparent; color: #75dcff; font: 700 8px ui-monospace, monospace; cursor: pointer; }
+.chip-action:hover, .chip-action:focus-visible { color: #fff; outline: 1px solid #75dcff; }
+.client-chip-wide { min-width: 310px; }
+#clientPublicIp, #clientNetwork { display: inline-block; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
 .utility-button { height: 34px; padding: 0 10px; border: 1px solid #33596d; background: #08141d; color: #b1cbd6; font: 700 10px ui-monospace, monospace; cursor: pointer; }
 .help-panel { position: absolute; z-index: 10; top: 74px; right: 20px; width: min(330px, calc(100% - 40px)); padding: 13px; border: 1px solid #345c70; background: #08131dfb; color: #b8d4df; font-size: 11px; line-height: 1.55; box-shadow: 0 12px 30px #0009; }
 .help-panel[hidden] { display: none; }
 .help-panel h3 { margin: 0 0 5px; color: #effcff; font-size: 12px; }
 .dashboard-header .summary-strip { border: 0; border-top: 1px solid #24465a; background: transparent; box-shadow: none; }
 .endpoint-select { width: 100%; height: 35px; padding: 0 9px; border: 1px solid #294b60; background: #050e15; color: #d8edf8; font: 12px ui-monospace, monospace; outline: 0; }
+.connection-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.connection-fields [hidden] { display: none; }
 .chart-tooltip { display: none; position: absolute; z-index: 3; padding: 7px 9px; border: 1px solid #5d7378; background: #101719; color: #dceeee; font: 11px/1.55 ui-monospace, monospace; white-space: pre-line; pointer-events: none; box-shadow: 0 8px 18px #0008; }
 .loss-dot { background: #ef6565; box-shadow: 0 0 7px #ef6565; }
 .chart-actions { display: flex; align-items: center; gap: 7px; }
@@ -93,6 +99,8 @@ body.speedtest-open { overflow: hidden; }
   .dashboard-header .brand p { font-size: 10px; }
   .client-meta { margin: 5px 0 0 55px; gap: 5px; }
   .client-chip { min-height: 21px; padding: 2px 6px; font-size: 9px; }
+  .client-chip-wide { min-width: 280px; }
+  #clientPublicIp, #clientNetwork { max-width: 190px; }
   .dashboard-header .summary-strip article { min-height: 82px; padding: 10px 14px; }
   .summary-strip strong { margin-top: 6px; font-size: 29px; }
   .summary-strip p { bottom: 8px; font-size: 9px; }
@@ -103,6 +111,7 @@ body.speedtest-open { overflow: hidden; }
   .side-panel { position: relative; z-index: 5; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 7px; align-content: start; overflow: hidden; }
   .side-panel > :not(.primary):not(.secondary) { grid-column: 1 / -1; }
   .side-panel label { margin: 7px 0; }
+  .connection-fields { gap: 7px; }
   .side-panel .primary, .side-panel .secondary { position: relative; z-index: 6; }
   .side-panel .secondary { margin-top: 0; }
   .bandwidth { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin: 7px 0; padding: 7px; }
@@ -135,11 +144,18 @@ body.speedtest-open { overflow: hidden; }
 
 @media (max-width: 760px) {
   .dashboard-header .topbar { padding: 15px; }
-  .client-meta { margin-left: 0; }
+  .client-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-left: 0; }
+  .client-chip { min-width: 0; max-width: 100%; overflow: hidden; }
+  .client-chip b { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .client-chip-wide { min-width: 0; }
+  .client-chip-wide, .client-chip-network { grid-column: 1 / -1; }
   .dashboard-header .summary-strip article { min-height: 104px; }
   .utility-button { display: none; }
-  .chart-actions { align-items: stretch; flex-direction: column; }
-  .speedtest-trigger { height: 30px; }
+  .panel-head { flex-wrap: wrap; gap: 8px; }
+  .chart-actions { display: grid; grid-template-columns: minmax(0, 1fr); flex: 0 0 100%; width: 100%; min-width: 0; align-items: center; }
+  .chart-tools { display: grid; grid-template-columns: 1fr 1fr; min-width: 0; }
+  .chart-tools button { min-width: 0; padding-inline: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .speedtest-trigger { width: 100%; height: 30px; }
   .speedtest-modal { align-items: start; padding: 8px; }
   .speedtest-dialog { max-height: calc(100dvh - 16px); padding: 14px; }
   .speedtest-status { grid-template-columns: auto 1fr; }

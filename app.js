@@ -1,17 +1,24 @@
 const el = (id) => document.getElementById(id);
 const net = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-const TRUSTED_ENDPOINTS = new Set([
-  'https://www.google.com/favicon.ico',
-  'https://www.cloudflare.com/favicon.ico',
-  'https://www.microsoft.com/favicon.ico'
-]);
+const APP_VERSION = '1.0.5';
 const SAME_ORIGIN_ENDPOINT = 'same-origin';
+const ENDPOINTS = [
+  { value: SAME_ORIGIN_ENDPOINT, label: '本網站連線（建議）' },
+  { value: 'https://www.google.com/favicon.ico', label: 'Google' },
+  { value: 'https://www.cloudflare.com/favicon.ico', label: 'Cloudflare' },
+  { value: 'https://www.microsoft.com/favicon.ico', label: 'Microsoft' }
+];
+const TRUSTED_ENDPOINTS = new Set(ENDPOINTS.filter(item => item.value !== SAME_ORIGIN_ENDPOINT).map(item => item.value));
 const SPEEDTEST_MODULE_URL = 'https://cdn.jsdelivr.net/npm/@cloudflare/speedtest@1.13.1/dist/speedtest.js';
 const SPEED_HISTORY_KEY = 'netchronos-speed-history-v1';
+const NETWORK_META_URL = 'https://1.1.1.1/cdn-cgi/trace';
+const CONNECTION_PROFILE_KEY = 'netchronos-connection-profile-v1';
 let samples = [], timer = null, activeProbeController = null, runVersion = 0;
 let running = false, sent = 0, failed = 0, consecutiveLoss = 0, range = 60, lastPoints = [];
 let speedTestEngine = null, speedTestRunVersion = 0, speedTestRunning = false;
 let speedHistory = loadSpeedHistory(), latestSpeedResult = speedHistory.at(-1) || null;
+let publicNetwork = { ip: '偵測中', cdn: '偵測中', country: '偵測中' };
+let publicIpVisible = false;
 
 function addEvent(message, type = '') {
   const item = document.createElement('div');
@@ -25,18 +32,29 @@ function addEvent(message, type = '') {
   while (log.children.length > 25) log.lastElementChild.remove();
 }
 const average = (list) => list.length ? list.reduce((a, b) => a + b, 0) / list.length : 0;
+function calculateStats() {
+  const good = samples.filter(sample => sample.ok).map(sample => sample.value);
+  const avg = average(good);
+  return {
+    good,
+    current: good.at(-1),
+    avg,
+    jitter: average(good.slice(1).map((value, index) => Math.abs(value - good[index]))),
+    loss: sent ? failed / sent * 100 : 0
+  };
+}
 function diagnosticText() {
-  const good = samples.filter(s => s.ok).map(s => s.value);
-  const avg = average(good), jitter = average(good.slice(1).map((v, i) => Math.abs(v - good[i])));
-  const loss = sent ? failed / sent * 100 : 0;
+  const { good, avg, jitter, loss } = calculateStats();
   const selected = el('endpoint').value;
   const endpointLabel = selected === SAME_ORIGIN_ENDPOINT ? new URL('probe.svg', window.location.href).href : selected || '-';
   const speedLines = latestSpeedResult ? [`Latest speed test: ${new Date(latestSpeedResult.time).toLocaleString()}`, `Download: ${latestSpeedResult.download.toFixed(1)} Mbps (peak ${latestSpeedResult.downloadPeak.toFixed(1)} Mbps)`, `Upload: ${latestSpeedResult.upload.toFixed(1)} Mbps (peak ${latestSpeedResult.uploadPeak.toFixed(1)} Mbps)`] : ['Latest speed test: -'];
-  return ['Network Diagnostic Summary', 'Version: 1.0.1', `Time: ${new Date().toLocaleString()}`, `Grade: ${el('gradeValue').textContent} (${el('gradeLabel').textContent})`, `Current latency: ${el('currentLatency').textContent} ms`, `Average latency: ${good.length ? avg.toFixed(1) : '-'} ms`, `Jitter: ${good.length > 1 ? jitter.toFixed(1) : '-'} ms`, `Loss: ${sent ? loss.toFixed(1) : '-'}% (${failed}/${sent} probes)`, `Consecutive loss: ${consecutiveLoss}`, `Endpoint: ${endpointLabel}`, `Browser network: ${el('connectionType').textContent}`, ...speedLines].join('\n');
+  return ['Network Diagnostic Summary', `Version: ${APP_VERSION}`, `Time: ${formatLocalDateTime()}`, `Public IP: ${displayPublicIp()}`, `CDN edge: ${publicNetwork.cdn}`, `Egress country: ${publicNetwork.country}`, `Grade: ${el('gradeValue').textContent} (${el('gradeLabel').textContent})`, `Current latency: ${el('currentLatency').textContent} ms`, `Average latency: ${good.length ? avg.toFixed(1) : '-'} ms`, `Jitter: ${good.length > 1 ? jitter.toFixed(1) : '-'} ms`, `Loss: ${sent ? loss.toFixed(1) : '-'}% (${failed}/${sent} probes)`, `Consecutive loss: ${consecutiveLoss}`, `Endpoint: ${endpointLabel}`, `Browser network: ${el('connectionType').textContent}`, ...speedLines].join('\n');
 }
 function updateSummary() { el('diagnosticSummary').textContent = diagnosticText(); }
 function updateNetworkInfo() {
-  el('connectionType').textContent = net?.effectiveType || (navigator.onLine ? 'Connected' : 'Offline');
+  const connection = connectionLabel();
+  el('connectionType').textContent = connection;
+  el('connectionType').title = connection;
   el('downlink').textContent = net?.downlink ? `${net.downlink.toFixed(1)} Mbps` : 'Not available';
   updateClientMeta();
 }
@@ -46,18 +64,142 @@ function browserLabel() {
   const platform = navigator.userAgentData?.platform || navigator.platform || 'Unknown OS';
   return `${platform} · ${browser}`;
 }
+function initializeEndpoints() {
+  const endpoint = el('endpoint');
+  ENDPOINTS.forEach(item => {
+    const option = document.createElement('option');
+    option.value = item.value;
+    option.textContent = item.label;
+    endpoint.append(option);
+  });
+}
+function utcOffsetLabel(date) {
+  const offset = -date.getTimezoneOffset();
+  const sign = offset >= 0 ? '+' : '-';
+  const hours = String(Math.floor(Math.abs(offset) / 60)).padStart(2, '0');
+  const minutes = String(Math.abs(offset) % 60).padStart(2, '0');
+  return `UTC${sign}${hours}:${minutes}`;
+}
+function formatLocalDateTime(date = new Date()) {
+  const dateTime = new Intl.DateTimeFormat('en-US', {
+    month: '2-digit', day: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
+  }).format(date);
+  const zone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Local time';
+  return `${dateTime} · ${zone} · ${utcOffsetLabel(date)}`;
+}
+function connectionLabel() {
+  if (!navigator.onLine) return '離線';
+  const profile = el('connectionProfile')?.value;
+  if (profile === 'hotspot-4g') return '4G 手機熱點';
+  if (profile === 'hotspot-5g') return '5G 手機熱點';
+  if (profile === 'wifi') return `Wi-Fi · ${el('ssidName').value.trim() || 'SSID 未填寫'}`;
+  const physical = net?.type;
+  const effective = net?.effectiveType?.toUpperCase();
+  if (physical === 'cellular') return `行動網路 · ${effective || '4G/5G 未知'}`;
+  if (physical === 'wifi') return 'Wi-Fi · SSID 受瀏覽器保護';
+  if (physical === 'ethernet') return '有線網路';
+  if (physical && !['unknown', 'other'].includes(physical)) return physical;
+  return effective ? `${effective} 等效 · Wi-Fi／手機熱點待辨識` : '已連線 · 介面未提供';
+}
+function saveConnectionProfile() {
+  try {
+    localStorage.setItem(CONNECTION_PROFILE_KEY, JSON.stringify({
+      profile: el('connectionProfile').value
+    }));
+  } catch { /* Storage may be disabled. */ }
+}
+function updateConnectionProfile(save = true) {
+  el('ssidField').hidden = el('connectionProfile').value !== 'wifi';
+  if (save) saveConnectionProfile();
+  updateNetworkInfo();
+  updateSummary();
+}
+function loadConnectionProfile() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(CONNECTION_PROFILE_KEY) || '{}');
+    const allowed = new Set(['auto', 'hotspot-4g', 'hotspot-5g', 'wifi']);
+    el('connectionProfile').value = allowed.has(stored.profile) ? stored.profile : 'auto';
+    el('ssidName').value = '';
+  } catch {
+    el('connectionProfile').value = 'auto';
+    el('ssidName').value = '';
+  }
+  saveConnectionProfile();
+  updateConnectionProfile(false);
+}
+function countryLabel(code) {
+  if (!/^[A-Z]{2}$/.test(code || '')) return code || '無法取得';
+  try {
+    const name = new Intl.DisplayNames(['zh-Hant'], { type: 'region' }).of(code);
+    return `${name} (${code})`;
+  } catch {
+    return code;
+  }
+}
+function parseTrace(text) {
+  return Object.fromEntries(text.split(/\r?\n/).map(line => line.split('=')).filter(parts => parts.length === 2));
+}
+function maskPublicIp(ip) {
+  if (ip === '偵測中' || ip === '無法取得') return ip;
+  if (ip.includes('.')) {
+    const parts = ip.split('.');
+    return parts.length === 4 ? `${parts[0]}.${parts[1]}.xxx.xxx` : 'IP 已遮罩';
+  }
+  if (ip.includes(':')) return `${ip.split(':').slice(0, 3).join(':')}:…`;
+  return 'IP 已遮罩';
+}
+function displayPublicIp() {
+  return publicIpVisible ? publicNetwork.ip : maskPublicIp(publicNetwork.ip);
+}
+function renderPublicIp() {
+  const displayed = displayPublicIp();
+  el('clientPublicIp').textContent = displayed;
+  el('clientPublicIp').title = publicIpVisible ? publicNetwork.ip : '公開 IP 已遮罩';
+  el('ipVisibilityButton').textContent = publicIpVisible ? '隱藏' : '顯示';
+  el('ipVisibilityButton').setAttribute('aria-pressed', String(publicIpVisible));
+}
+async function updatePublicNetworkMeta() {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 6000);
+  try {
+    const response = await fetch(`${NETWORK_META_URL}?t=${Date.now()}`, { cache: 'no-store', referrerPolicy: 'no-referrer', signal: controller.signal });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const trace = parseTrace(await response.text());
+    publicNetwork = {
+      ip: trace.ip || '無法取得',
+      cdn: trace.colo ? `Cloudflare · ${trace.colo}` : 'Cloudflare',
+      country: countryLabel(trace.loc)
+    };
+  } catch {
+    publicNetwork = { ip: '無法取得', cdn: '無法取得', country: '無法取得' };
+  } finally {
+    clearTimeout(timeoutId);
+    renderPublicIp();
+    el('clientCdn').textContent = publicNetwork.cdn;
+    el('clientCountry').textContent = publicNetwork.country;
+    updateSummary();
+  }
+}
 function updateClientMeta() {
   el('clientBrowser').textContent = browserLabel();
-  el('clientClock').textContent = new Date().toLocaleString([], { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit' });
-  el('clientTimezone').textContent = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Local time';
-  const type = net?.effectiveType || (navigator.onLine ? 'Online' : 'Offline');
+  el('clientDateTime').textContent = formatLocalDateTime();
+  const type = connectionLabel();
   const downlink = net?.downlink ? ` · ${net.downlink.toFixed(1)} Mbps` : '';
   el('clientNetwork').textContent = `${type}${downlink}`;
+  el('clientNetwork').title = `${type}${downlink}`;
 }
 function updateStartAvailability() {
   const enabled = (el('endpoint').value === SAME_ORIGIN_ENDPOINT || TRUSTED_ENDPOINTS.has(el('endpoint').value)) && !running;
   el('startButton').disabled = !enabled;
   el('startButton').title = enabled ? 'Start network monitoring' : 'Select a trusted test endpoint first';
+}
+function boundedInputValue(id, min, max, fallback) {
+  const input = el(id);
+  const parsed = Number(input.value);
+  const value = Number.isFinite(parsed) ? Math.min(max, Math.max(min, parsed)) : fallback;
+  input.value = value;
+  return value;
 }
 function loadSpeedHistory() {
   try {
@@ -231,6 +373,7 @@ function closeSpeedTest() {
 function loadImageProbe(url, signal) {
   return new Promise((resolve, reject) => {
     const image = new Image();
+    image.referrerPolicy = 'no-referrer';
     const cleanup = () => signal?.removeEventListener('abort', onAbort);
     const onAbort = () => { image.src = ''; cleanup(); reject(new DOMException('Probe aborted', 'AbortError')); };
     image.onload = () => { cleanup(); resolve(); };
@@ -240,10 +383,7 @@ function loadImageProbe(url, signal) {
   });
 }
 function updateStats() {
-  const good = samples.filter(s => s.ok).map(s => s.value);
-  const current = good.at(-1), avg = average(good);
-  const jitter = average(good.slice(1).map((v, i) => Math.abs(v - good[i])));
-  const loss = sent ? failed / sent * 100 : 0;
+  const { good, current, avg, jitter, loss } = calculateStats();
   el('currentLatency').textContent = current == null ? '-' : current.toFixed(0);
   el('averageLatency').textContent = good.length ? avg.toFixed(0) : '-';
   el('jitter').textContent = good.length > 1 ? jitter.toFixed(1) : '-';
@@ -283,7 +423,8 @@ function draw() {
 }
 async function probe(version) {
   if (!running || version !== runVersion) return;
-  const started = performance.now(), controller = new AbortController(), timeout = setTimeout(() => controller.abort(), Number(el('timeout').value || 5) * 1000);
+  const timeoutSeconds = boundedInputValue('timeout', 1, 30, 5);
+  const started = performance.now(), controller = new AbortController(), timeout = setTimeout(() => controller.abort(), timeoutSeconds * 1000);
   activeProbeController = controller;
   let cancelled = false;
   try {
@@ -305,7 +446,7 @@ async function probe(version) {
     clearTimeout(timeout);
     if (activeProbeController === controller) activeProbeController = null;
     if (!cancelled) { samples = samples.slice(-240); updateStats(); }
-    if (running && version === runVersion) timer = setTimeout(() => probe(version), Math.max(1000, Number(el('interval').value || 3) * 1000));
+    if (running && version === runVersion) timer = setTimeout(() => probe(version), boundedInputValue('interval', 1, 60, 3) * 1000);
   }
 }
 function start() { if (running) return; if (el('endpoint').value !== SAME_ORIGIN_ENDPOINT && !TRUSTED_ENDPOINTS.has(el('endpoint').value)) { addEvent('Select a trusted HTTPS endpoint before starting.', 'warn'); return; } running=true; runVersion++; updateStartAvailability(); el('pauseButton').disabled=false; el('statusText').textContent='Monitoring'; el('statusDot').className='live'; addEvent('Network monitoring started'); probe(runVersion); }
@@ -313,11 +454,12 @@ function pause() { const wasRunning=running; running=false; runVersion++; clearT
 el('startButton').onclick=start; el('pauseButton').onclick=pause;
 el('clearButton').onclick=()=>{ const empty=document.createElement('p'); empty.className='no-events'; empty.textContent='No events yet'; el('eventLog').replaceChildren(empty); };
 el('copySummaryButton').onclick=async()=>{ const report = diagnosticText(); try { await navigator.clipboard.writeText(report); el('copyFeedback').textContent='Summary copied to clipboard.'; } catch { const area=document.createElement('textarea'); area.value=report; document.body.append(area); area.select(); document.execCommand('copy'); area.remove(); el('copyFeedback').textContent='Summary copied to clipboard.'; } setTimeout(()=>{el('copyFeedback').textContent='';},2500); };
-el('resetButton').onclick=()=>{ pause(); samples=[]; sent=failed=consecutiveLoss=0; updateStats(); el('endpoint').selectedIndex=0; el('interval').value=3; el('timeout').value=5; updateStartAvailability(); };
+el('resetButton').onclick=()=>{ pause(); samples=[]; sent=failed=consecutiveLoss=0; updateStats(); el('endpoint').selectedIndex=0; el('interval').value=3; el('timeout').value=5; el('connectionProfile').value='auto'; el('ssidName').value=''; updateConnectionProfile(); updateStartAvailability(); };
 document.querySelectorAll('[data-range]').forEach(button => button.onclick=()=>{ document.querySelector('[data-range].active').classList.remove('active'); button.classList.add('active'); range=Number(button.dataset.range); draw(); });
 el('latencyChart').addEventListener('mousemove', (event) => { const canvas=el('latencyChart'), rect=canvas.getBoundingClientRect(), x=event.clientX-rect.left, point=lastPoints.reduce((nearest,p)=>!nearest||Math.abs(p.x-x)<Math.abs(nearest.x-x)?p:nearest,null), tip=el('chartTooltip'); if(!point){tip.style.display='none';return;} tip.textContent=`${point.ok ? 'LATENCY' : 'LOSS / TIMEOUT'}\n${point.ok ? `${point.value.toFixed(1)} ms` : 'No response'}\n${point.time ? new Date(point.time).toLocaleTimeString() : ''}`; tip.style.display='block'; tip.style.left=`${Math.min(rect.width-145,Math.max(8,point.x+12))}px`; tip.style.top=`${Math.max(8,point.y-55)}px`; });
 el('latencyChart').addEventListener('mouseleave', () => { el('chartTooltip').style.display='none'; });
 el('helpButton').onclick=()=>{ const panel=el('helpPanel'), open=panel.hasAttribute('hidden'); panel.toggleAttribute('hidden', !open); el('helpButton').setAttribute('aria-expanded', String(open)); };
+el('ipVisibilityButton').onclick=()=>{ publicIpVisible=!publicIpVisible; renderPublicIp(); updateSummary(); };
 el('speedTestButton').onclick=openSpeedTest;
 el('closeSpeedTestButton').onclick=closeSpeedTest;
 el('startSpeedTestButton').onclick=startSpeedTest;
@@ -325,4 +467,20 @@ el('stopSpeedTestButton').onclick=stopSpeedTest;
 el('clearSpeedHistoryButton').onclick=()=>{ if(!confirm('確定清除本機的速度測試歷史紀錄？')) return; speedHistory=[]; latestSpeedResult=null; saveSpeedHistory(); updateSpeedHistory(); updateSummary(); addEvent('Local speed test history cleared'); };
 el('speedTestModal').addEventListener('click', event => { if(event.target === el('speedTestModal')) closeSpeedTest(); });
 document.addEventListener('keydown', event => { if(event.key === 'Escape' && !el('speedTestModal').hidden) closeSpeedTest(); });
-el('endpoint').addEventListener('change', updateStartAvailability); window.addEventListener('resize',draw); window.addEventListener('online',()=>{updateNetworkInfo();addEvent('Browser is online');}); window.addEventListener('offline',()=>{updateNetworkInfo();addEvent('Browser is offline','warn');}); net?.addEventListener?.('change',updateNetworkInfo); updateNetworkInfo(); updateStartAvailability(); updateSpeedHistory(); updateStats(); setInterval(updateClientMeta, 1000);
+el('endpoint').addEventListener('change', updateStartAvailability);
+el('connectionProfile').addEventListener('change',()=>updateConnectionProfile());
+el('ssidName').addEventListener('input',()=>updateConnectionProfile());
+el('interval').addEventListener('change',()=>boundedInputValue('interval', 1, 60, 3));
+el('timeout').addEventListener('change',()=>boundedInputValue('timeout', 1, 30, 5));
+window.addEventListener('resize',draw);
+window.addEventListener('online',()=>{updateNetworkInfo();updatePublicNetworkMeta();addEvent('Browser is online');});
+window.addEventListener('offline',()=>{updateNetworkInfo();addEvent('Browser is offline','warn');});
+net?.addEventListener?.('change',updateNetworkInfo);
+el('appVersion').textContent = `V${APP_VERSION}`;
+initializeEndpoints();
+loadConnectionProfile();
+updatePublicNetworkMeta();
+updateStartAvailability();
+updateSpeedHistory();
+updateStats();
+setInterval(()=>{updateClientMeta();updateSummary();}, 1000);

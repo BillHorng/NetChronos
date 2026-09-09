@@ -1,0 +1,214 @@
+:root {
+  --bg: #09111c;
+  --panel: #111d2b;
+  --line: #304b5d;
+  --ink: #e7f0f4;
+  --muted: #9aafbb;
+  --cyan: #67d8cd;
+  --orange: #f2ad56;
+  --green: #52d6a4;
+  --red: #ef6b67;
+  color-scheme: dark;
+}
+
+body {
+  background:
+    radial-gradient(ellipse at 50% -20%, #2d78913d, transparent 48%),
+    repeating-linear-gradient(0deg, #78b8cc0a 0 1px, transparent 1px 25px),
+    repeating-linear-gradient(90deg, #78b8cc0a 0 1px, transparent 1px 25px),
+    var(--bg);
+}
+
+.dashboard-header,
+.chart-panel,
+.side-panel,
+.event-panel,
+.summary-panel {
+  border-color: var(--line);
+  background: linear-gradient(135deg, #142334f5, #0d1825f8);
+  box-shadow: inset 0 0 0 1px #9ee9ed0a, 0 14px 32px #02070c80;
+}
+
+.dashboard-header::before,
+.chart-panel::after,
+.side-panel::after,
+.event-panel::after,
+.summary-panel::after {
+  background: linear-gradient(90deg, var(--cyan), transparent);
+}
+
+.logo {
+  border-color: #4c7185;
+  background: #0e1a28;
+  color: transparent;
+  box-shadow: inset 0 0 18px #67d8cd1f;
+}
+
+.logo img {
+  width: 37px;
+  height: 37px;
+  display: block;
+}
+
+h1 {
+  color: #f1f8fa;
+  text-shadow: 0 0 18px #67d8cd29;
+}
+
+.version {
+  border-color: #3d786f;
+  background: #12342f;
+  color: #8ae7db;
+}
+
+.client-chip,
+.status-pill,
+.grade,
+.chart-tools,
+.speedtest-status,
+.speedtest-peaks div,
+.speedtest-history-grid,
+.bandwidth {
+  border-color: #335266;
+  background: #0b1723;
+}
+
+.client-chip {
+  color: #a9bec9;
+}
+
+.client-chip b,
+.bandwidth strong {
+  color: #e5f0f4;
+}
+
+.utility-button,
+.side-head button,
+.event-panel > button,
+button.secondary {
+  border-color: #42657a;
+  background: #132331;
+  color: #c7d8df;
+}
+
+.utility-button:hover,
+.side-head button:hover,
+.event-panel > button:hover,
+button.secondary:hover:not(:disabled) {
+  border-color: var(--cyan);
+  color: #f5ffff;
+}
+
+.summary-strip article {
+  border-color: #294456;
+  background: linear-gradient(90deg, #67d8cd0a, transparent);
+}
+
+.summary-strip article::before {
+  background: #4b9fbe;
+}
+
+.summary-strip article:nth-child(4)::before {
+  background: var(--orange);
+}
+
+.summary-strip span,
+.summary-strip small,
+.summary-strip p,
+.brand p,
+.panel-head p,
+.event-panel p,
+.summary-panel p,
+.hint {
+  color: var(--muted);
+}
+
+.chart-wrap,
+.summary-panel pre {
+  border-color: #365c70;
+  background-color: #08131e;
+}
+
+.chart-tools button.active {
+  background: #245166;
+  color: #effdff;
+}
+
+.speedtest-trigger,
+.summary-panel button {
+  border-color: #4a877d;
+  background: #153a35;
+  color: #9ce9de;
+}
+
+.speedtest-trigger:hover,
+.summary-panel button:hover {
+  border-color: #76ddd1;
+  color: #f3fffd;
+}
+
+.endpoint-select,
+.side-panel input {
+  border-color: #3b5d70;
+  background: #0a1621;
+  color: #e5eff3;
+}
+
+.endpoint-select:focus,
+.side-panel input:focus {
+  border-color: var(--cyan);
+  box-shadow: 0 0 0 2px #67d8cd24;
+}
+
+button.primary {
+  border-color: #318c7c;
+  background: linear-gradient(#36ad98, #24796e);
+  color: #f5fffd;
+}
+
+button.primary:hover:not(:disabled) {
+  background: linear-gradient(#45bea9, #2d887b);
+}
+
+.rating-rules b {
+  background: #287e78;
+}
+
+.rating-rules div:nth-of-type(2) b {
+  background: #b17734;
+}
+
+.rating-rules div:nth-of-type(n+3) b {
+  background: #ae4c4a;
+}
+
+.event-item {
+  border-color: #2e5367;
+  border-left-color: var(--cyan);
+  background: #0c1925;
+}
+
+.event-item.warn {
+  border-color: #805b37;
+  border-left-color: var(--orange);
+  background: #251b12;
+}
+
+.help-panel,
+.speedtest-dialog {
+  border-color: #41677c;
+  background: linear-gradient(135deg, #172738, #0d1926);
+}
+
+.speedtest-controls .danger {
+  border-color: #87504d;
+  background: #2b1818;
+  color: #ef9995;
+}
+
+button:focus-visible,
+select:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}

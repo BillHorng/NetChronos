@@ -3,9 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self'; img-src 'self' data: https://www.google.com https://www.cloudflare.com https://www.microsoft.com; connect-src 'self' https://1.1.1.1 https://speed.cloudflare.com; font-src 'self'; form-action 'none'; upgrade-insecure-requests">
   <title>NetChronos｜網路穩定度監控</title>
+  <link rel="icon" type="image/svg+xml" href="netchronos-logo.svg">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="layout.css">
+  <link rel="stylesheet" href="theme.css">
+  <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@cloudflare/speedtest@1.13.1/dist/speedtest.js" integrity="sha384-3v0bYsWWMRloKhCSlnCOYCgGKYQw1kwN1CLOBSzRUAyJhX1B5ReajZ73FQslegfu" crossorigin="anonymous">
 </head>
 <body>
   <div class="app">
@@ -13,17 +18,19 @@
       <header class="topbar">
         <div class="header-main">
           <div class="brand">
-            <span class="logo" aria-hidden="true">◌</span>
+            <span class="logo"><img src="netchronos-logo.svg" alt=""></span>
             <div>
-              <div class="title-row"><h1>NetChronos</h1><span class="version">V1.0.1</span></div>
+              <div class="title-row"><h1>NetChronos</h1><span class="version" id="appVersion">V—</span></div>
               <p>網路延遲、抖動、丟包與頻寬狀態監控</p>
             </div>
           </div>
           <div class="client-meta">
             <span class="client-chip">▣ <b id="clientBrowser">偵測中</b></span>
-            <span class="client-chip">◷ <b id="clientClock">--</b></span>
-            <span class="client-chip">◎ <b id="clientTimezone">--</b></span>
-            <span class="client-chip">⌁ <b id="clientNetwork">--</b></span>
+            <span class="client-chip client-chip-wide">◷ <b id="clientDateTime">--</b></span>
+            <span class="client-chip">IP <b id="clientPublicIp">偵測中</b><button class="chip-action" id="ipVisibilityButton" type="button" aria-pressed="false">顯示</button></span>
+            <span class="client-chip">CDN <b id="clientCdn">偵測中</b></span>
+            <span class="client-chip">LOC <b id="clientCountry">偵測中</b></span>
+            <span class="client-chip client-chip-network">⌁ <b id="clientNetwork">--</b></span>
           </div>
         </div>
         <div class="top-actions">
@@ -34,7 +41,7 @@
       </header>
       <aside class="help-panel" id="helpPanel" hidden>
         <h3>監測說明</h3>
-        <p>選擇 HTTPS 信任端點後開始監測。延遲以圖片資源載入時間估算；Loss 代表探測失敗或逾時，不等同 ICMP 封包遺失。速度測試為手動執行，會產生大量流量並保存最近 50 次完整結果於目前瀏覽器。</p>
+        <p>選擇 HTTPS 信任端點後開始監測。延遲以圖片資源載入時間估算；Loss 代表探測失敗或逾時，不等同 ICMP 封包遺失。公開 IP 預設遮罩，出口國家與 CDN 節點取自 Cloudflare；Wi-Fi SSID 僅保留到本頁關閉。速度測試為手動執行，會產生大量流量並保存最近 50 次完整結果於目前瀏覽器。</p>
       </aside>
       <section class="summary-strip">
         <article><span>目前延遲</span><strong id="currentLatency">—</strong><small>ms</small><p id="latencyFoot">尚未取得樣本</p></article>
@@ -73,15 +80,24 @@
         <label>測試網站
           <select id="endpoint" class="endpoint-select">
             <option value="" selected disabled>請選擇測試網站</option>
-            <option value="same-origin">本網站連線（建議）</option>
-            <option value="https://www.google.com/favicon.ico">Google</option>
-            <option value="https://www.cloudflare.com/favicon.ico">Cloudflare</option>
-            <option value="https://www.microsoft.com/favicon.ico">Microsoft</option>
           </select>
         </label>
         <div class="two-fields">
-          <label>探測間隔<input id="interval" type="number" min="1" value="3"><small>秒</small></label>
-          <label>逾時時間<input id="timeout" type="number" min="1" value="5"><small>秒</small></label>
+          <label>探測間隔<input id="interval" type="number" min="1" max="60" value="3"><small>秒</small></label>
+          <label>逾時時間<input id="timeout" type="number" min="1" max="30" value="5"><small>秒</small></label>
+        </div>
+        <div class="connection-fields">
+          <label>連線識別
+            <select id="connectionProfile" class="endpoint-select">
+              <option value="auto">自動偵測</option>
+              <option value="hotspot-4g">4G 手機熱點</option>
+              <option value="hotspot-5g">5G 手機熱點</option>
+              <option value="wifi">Wi-Fi</option>
+            </select>
+          </label>
+          <label id="ssidField" hidden>Wi-Fi SSID
+            <input id="ssidName" type="text" maxlength="32" autocomplete="off" placeholder="請自行輸入 SSID">
+          </label>
         </div>
         <div class="bandwidth">
           <div><span>下行頻寬預估</span><strong id="downlink">偵測中</strong></div>

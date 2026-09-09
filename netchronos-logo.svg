@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">NetChronos</title>
+  <desc id="desc">結合網路節點與時間脈衝的六角形標誌</desc>
+  <defs>
+    <linearGradient id="frame" x1="8" y1="6" x2="56" y2="58" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#67e1d3"/>
+      <stop offset="1" stop-color="#3a8fbd"/>
+    </linearGradient>
+    <linearGradient id="pulse" x1="15" y1="32" x2="49" y2="32" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#67e1d3"/>
+      <stop offset=".54" stop-color="#f2ad56"/>
+      <stop offset="1" stop-color="#ff7b62"/>
+    </linearGradient>
+  </defs>
+  <path d="M32 4 55 17v30L32 60 9 47V17L32 4Z" fill="#101d2c" stroke="url(#frame)" stroke-width="3"/>
+  <path d="M15 34h8l4-10 7 19 5-12h10" fill="none" stroke="url(#pulse)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="15" cy="34" r="3" fill="#67e1d3"/>
+  <circle cx="49" cy="31" r="3" fill="#ff7b62"/>
+</svg>

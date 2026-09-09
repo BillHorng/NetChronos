@@ -12,7 +12,7 @@ NetChronos 是純前端網路穩定度監控頁面，用來觀察瀏覽器載入
 - 正式網站：<https://billhorng.github.io/NetChronos/>
 - 發布分支：`main`
 - 發布方式：GitHub Pages 靜態網站
-- 目前版本：`V1.0.1`
+- 目前版本：`V1.0.5`
 - 最後交接更新：2026-09-09
 
 目前版本已完成以下項目：
@@ -27,16 +27,21 @@ NetChronos 是純前端網路穩定度監控頁面，用來觀察瀏覽器載入
 - 已完成檔案引用與程式碼盤點；所有專案檔案均有用途，並已移除頂部面板與摘要列中永遠被覆蓋的 CSS 宣告及重複裝飾線規則。
 - 右側監測設定已改為免捲動緊湊布局：頻寬資訊三欄、評級兩欄、開始與暫停按鈕左右並排。
 - V1.0.1 新增 Cloudflare 速度測試彈窗、本次下載／上傳峰值、最近 50 次本機紀錄，以及歷史最高／最低速度。
+- V1.0.5 將日期、12 小時制時間、IANA 時區與 UTC 偏移合併顯示，並透過 Cloudflare trace 顯示公開 IP、CDN 節點及出口國家。
+- V1.0.5 安全加固包含 CSP、無 Referrer 外部請求、Cloudflare 模組 SRI、公開 IP 預設遮罩、SSID 不落地，以及探測輸入上下限。
+- V1.0.5 將高刺激黑橘配色調整為深藍灰與青綠主色，警告使用琥珀色、錯誤使用紅色，並新增品牌 SVG LOGO 與瀏覽器 favicon。
 
 ## 檔案結構
 
 | 檔案 | 用途 |
 | --- | --- |
 | `index.html` | 頁面語意結構、監測設定、圖表、事件紀錄、診斷摘要與說明內容。 |
-| `styles.css` | 主視覺、色彩、元件及工業化介面樣式。 |
+| `styles.css` | 基礎元件與工業化介面樣式。 |
 | `layout.css` | 單頁壓縮布局、響應式規則及少量結構輔助樣式。 |
+| `theme.css` | 使用者友善的深藍灰／青綠配色、狀態色彩及互動焦點樣式；載入順序必須在 `layout.css` 之後。 |
 | `app.js` | 探測排程、統計、評級、Canvas 圖表、Cloudflare 測速、本機歷史紀錄、事件與複製摘要。 |
 | `probe.svg` | 同源探測用的極小圖片資源。 |
+| `netchronos-logo.svg` | 儀表板品牌 LOGO 與瀏覽器分頁 favicon；採自託管 SVG，不含外部資源或腳本。 |
 | `.nojekyll` | 避免 GitHub Pages 以 Jekyll 處理靜態檔案。 |
 | `HANDOFF.md` | 本交接文件。 |
 
@@ -94,8 +99,8 @@ NetChronos 是純前端網路穩定度監控頁面，用來觀察瀏覽器載入
 
 ### 測速引擎
 
-- 使用 `@cloudflare/speedtest` `1.13.1`，透過固定版本的 jsDelivr ESM URL 動態載入：`https://cdn.jsdelivr.net/npm/@cloudflare/speedtest@1.13.1/dist/speedtest.js`。
-- 只有使用者按下「開始速度測試」才會下載模組並執行，不會在頁面載入時自動消耗測速流量。
+- 使用 `@cloudflare/speedtest` `1.13.1`，透過固定版本的 jsDelivr ESM URL 動態載入：`https://cdn.jsdelivr.net/npm/@cloudflare/speedtest@1.13.1/dist/speedtest.js`。`index.html` 同時以 `modulepreload` 與 SHA-384 SRI 驗證固定檔案內容。
+- 頁面會預載約 53 KB 的測速模組；只有使用者按下「開始速度測試」才會執行下載／上傳量測，不會在載入頁面時自動產生大量測速流量。
 - 自訂測量包含閒置延遲、下載及上傳，不包含 Cloudflare 套件的 WebRTC Packet Loss；後者需要自行提供 TURN 服務。
 - 量測資料上限約為下載 58.3 MB、上傳 58.3 MB，單次合計最高約 116.6 MB。較慢連線可能由引擎提前結束後續大型測量。
 - Cloudflare 會接收完成結果並用於彙總網路品質分析；介面必須保留此告知文字。
@@ -128,16 +133,24 @@ NetChronos 是純前端網路穩定度監控頁面，用來觀察瀏覽器載入
 ## 安全設計
 
 - 僅允許同源資源或程式內固定的 HTTPS 白名單端點。
+- 受信任端點由 `app.js` 的 `ENDPOINTS` 單一清單產生選單及白名單，避免 HTML 與 JavaScript 設定不同步。
 - 動態內容使用 `textContent` 與 DOM API，不執行外部輸入或 `eval`。
 - URL 會經 `URL` 解析並再次確認協定及完整位址。
 - 摘要優先使用 Clipboard API；不支援時才使用暫時文字欄位複製。
-- Cloudflare 測速套件鎖定明確版本，不使用浮動 `latest` URL；升級前需重新閱讀官方版本說明並執行完整測速驗證。
+- `index.html` 以 CSP 限制程式、樣式、圖片及連線來源，並使用全頁 `no-referrer`；程式建立的外部圖片及 Cloudflare metadata 請求亦明確設定 `no-referrer`。
+- Cloudflare 測速套件鎖定明確版本，不使用浮動 `latest` URL，並使用 SHA-384 SRI；升級前需同步更新 URL 與完整性雜湊、重新閱讀官方版本說明並執行完整測速驗證。
+- 公開 IP 預設遮罩，只有使用者按「顯示」後才在畫面及複製摘要中出現完整值。
+- 手動輸入的 Wi-Fi SSID 只存在頁面記憶體，不寫入 `localStorage`；連線類別仍會保存在目前瀏覽器。
+- 探測間隔限制為 1–60 秒，逾時限制為 1–30 秒，HTML 與 JavaScript 皆會驗證。
 - `localStorage` 載入時會驗證資料格式，只接受具有效時間與正數下載／上傳值的紀錄。
 
 ## 已知限制
 
 - 瀏覽器無法直接取得作業系統層級的真實頻寬、ICMP Loss、路由節點或介面流量。
 - `navigator.connection` 並非所有瀏覽器都支援；顯示的連線類型與下行頻寬只是瀏覽器估計值。
+- 一般網頁基於隱私與安全限制無法讀取 Wi-Fi SSID，也無法可靠區分 Wi-Fi 與手機熱點；`effectiveType` 的最高等級為 `4g`，5G 亦可能顯示為 4G 等效。介面只在瀏覽器提供 `connection.type` 時自動標示實體類型，否則明確顯示待辨識；使用者可手動選擇 4G／5G 手機熱點或輸入 Wi-Fi SSID，但 SSID 不會跨重新整理保存。
+- 公開 IP、出口國家與 CDN 節點由 `https://1.1.1.1/cdn-cgi/trace` 即時取得；若 Cloudflare 被公司網路、防火牆或擴充套件阻擋，欄位會顯示「無法取得」。
+- GitHub Pages 無法由此專案設定自訂 HTTP 回應標頭，因此 `frame-ancestors`、`X-Frame-Options`、`Permissions-Policy` 等部署層標頭不在目前版本控制範圍內；若需要完整防 iframe 嵌入，應改用可設定回應標頭的平台或反向代理。
 - 外部 favicon 端點可用性由第三方控制，不能保證永久穩定；同源 `probe.svg` 才是部署環境的主要健康檢查。
 - 若需精確 ICMP、SNMP 或長期集中監控，必須搭配後端代理、桌面程式或企業監控系統。
 - 測速功能依賴 jsDelivr 與 Cloudflare；受管制網路若封鎖任一服務，測速會失敗，但原有延遲監控仍可獨立使用。
@@ -179,19 +192,31 @@ git push origin main
 
 只提交實際修改過的檔案；若工作目錄內有其他成員尚未提交的內容，應先確認所有權，不要使用 `git reset --hard` 或直接覆蓋。
 
-推送完成後，到正式網站進行強制重新整理（Windows：`Ctrl + F5`），並重新執行上述五項驗證。GitHub Pages 更新可能稍有延遲，因此網站內容未立即變更時，先等待部署完成再判定失敗。
+推送完成後，到正式網站進行強制重新整理（Windows：`Ctrl + F5`），並重新執行上述七項驗證。GitHub Pages 更新可能稍有延遲，因此網站內容未立即變更時，先等待部署完成再判定失敗。
 
 ## 後續修改注意事項
 
-- 新增外部端點時，必須同時更新 `index.html` 的選項與 `app.js` 的 `TRUSTED_ENDPOINTS`，並限定為完整 HTTPS URL。
+- 新增外部端點時，只需更新 `app.js` 的 `ENDPOINTS`；程式會由同一份資料建立下拉選單及 HTTPS 白名單。
 - 修改評級門檻時，要同步更新 `app.js`、右側「網路評分標準」及本文件。
-- 修改版面時，主要元件樣式放在 `styles.css`；單頁高度與響應式覆寫放在 `layout.css`，不要再加入行內 `<style>`。
+- 修改版面時，基礎元件放在 `styles.css`、單頁高度與響應式結構放在 `layout.css`、配色與視覺主題放在 `theme.css`；不要加入行內 `<style>`。
+- 修改 `netchronos-logo.svg` 時，必須同時確認儀表板 46 × 46 px 品牌區與瀏覽器 favicon 的小尺寸辨識度，並維持 SVG 不含腳本及外部引用。
 - 修改探測生命週期時，必須保留取消控制與 `runVersion` 檢查，避免暫停後的舊請求回寫統計。
-- 升級 `@cloudflare/speedtest` 時，必須同步更新 `SPEEDTEST_MODULE_URL`、本文件版本資訊並重新確認資料收集政策。
+- 升級 `@cloudflare/speedtest` 時，必須同步更新 `SPEEDTEST_MODULE_URL`、`index.html` 的 `modulepreload` URL 與 SRI 雜湊、本文件版本資訊，並重新確認資料收集政策。
 - 修改 `speedMeasurements()` 時，要重新計算並更新介面及本文件標示的最大流量。
 - 發布前至少檢查 `git diff --check`，並以桌面與手機尺寸各載入一次頁面。
 
 ## 版本紀錄
+
+### V1.0.5（2026-09-09）
+
+- 合併日期、AM/PM 時間、IANA 時區及 `UTC±HH:MM` 偏移資訊。
+- 新增公開 IP、Cloudflare CDN 節點及出口國家資訊。
+- 將連線型態轉為行動網路、Wi-Fi、有線網路或等效速度標籤，並明確揭露 SSID、5G 與手機熱點的瀏覽器偵測限制。
+- 新增連線識別選單與手動 Wi-Fi SSID 欄位，補足瀏覽器無法自動辨識 4G／5G 熱點和 SSID 的限制。
+- 診斷摘要同步加入時間、公開 IP、CDN 節點與出口國家。
+- 完成安全與重複性加固：CSP、SRI、Referrer Policy、IP 遮罩、SSID 不落地、輸入限制，以及端點／版本／統計單一來源化。
+- 更新整體色彩為深藍灰、青綠與語意化琥珀／紅色，降低長時間監控的視覺刺激並強化狀態辨識。
+- 新增 `netchronos-logo.svg`，同時顯示於 NetChronos 品牌名稱旁及瀏覽器分頁標題前。
 
 ### V1.0.1（2026-09-09）
 
@@ -205,10 +230,17 @@ git push origin main
 
 ## 最近一次驗證結果
 
-- `index.html` 引用的 `styles.css`、`layout.css`、`app.js` 與 `probe.svg` 均存在且仍在使用。
-- HTML 的 class／ID、JavaScript 函式及 CSS 選擇器未發現可直接刪除的未引用項目。
-- CSS 大括號數量一致，`git diff --check` 通過。
+- `index.html` 引用的 `styles.css`、`layout.css`、`theme.css`、`app.js`、`probe.svg` 與 `netchronos-logo.svg` 均存在且仍在使用。
+- HTML DOM 目標無缺失或重複 ID；JavaScript 未使用函式及頂層變數皆為 0，CSS 選擇器未發現可直接刪除的孤立項目。
+- 未發現 `innerHTML`、`outerHTML`、`insertAdjacentHTML`、`eval`、`new Function` 或 `document.write` 等危險執行／注入點。
+- JavaScript 大括號數量一致，`git diff --check` 通過。
 - 已使用 Microsoft Edge 無頭模式，以 1600 × 900 及 1366 × 768 桌面尺寸載入頁面；版面完整顯示於單頁內，JavaScript 初始化正常。
 - 1366 × 768、瀏覽器 100% 比例下，右側面板沒有捲軸，A–D 評級與開始／暫停按鈕均完整顯示且未受遮擋。
-- V1.0.1 主畫面與測速彈窗已在 1366 × 768 載入驗證，彈窗不會擠壓原有布局。
-- 固定版本測速模組已確認回應 HTTP 200、`application/javascript`、CORS `Access-Control-Allow-Origin: *`。自動化 Edge 的外網存取遭執行環境防火牆封鎖，因此完整下載／上傳測量列為部署後必要驗證項目。
+- V1.0.5 已在 1366 × 768 載入驗證；CSP 下 JavaScript 初始化、公開 IP 遮罩、日期時間、CDN、出口國家與連線識別布局正常。
+- 新配色與品牌 LOGO 已在 1366 × 768、瀏覽器 100% 比例載入驗證；LOGO 清楚顯示且沒有改變單頁高度或遮擋控制項。
+- 已以 390 × 844 手機視窗驗證：頂部資訊採兩欄網格，日期時間與連線資訊橫跨整列；圖表操作列移到標題下方並拆成速度測試、範圍選擇上下兩列，所有文字與按鈕均完整顯示且沒有水平溢出。
+- Google、Cloudflare、Microsoft 三個 favicon 端點均回應 HTTP 200，最終網址未跳離 CSP 圖片白名單。
+- `@cloudflare/speedtest` `1.13.1` 已在 npm 官方登錄確認，jsDelivr 模組為 53,113 bytes；目前 `modulepreload` 的 SHA-384 SRI 為 `sha384-3v0bYsWWMRloKhCSlnCOYCgGKYQw1kwN1CLOBSzRUAyJhX1B5ReajZ73FQslegfu`。
+- OSV API 對 `@cloudflare/speedtest` `1.13.1` 的查詢回應為空物件，檢查當下未匹配已知漏洞；這不代表未來不會出現新公告，升級及發布前仍應重新查詢。
+- `localStorage` 寫入內容已確認只有連線類別與測速歷史，不包含 Wi-Fi SSID；公開 IP 預設以 IPv4 後兩段或 IPv6 後段遮罩。
+- 自動化環境未執行完整下載／上傳量測，因此 Cloudflare 實際測速仍列為部署後必要驗證項目。
