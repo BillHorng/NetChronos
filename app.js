@@ -1,9 +1,9 @@
 const el = (id) => document.getElementById(id);
 const net = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
 const TRUSTED_ENDPOINTS = new Set([
-  'https://www.gstatic.com/generate_204',
-  'https://www.cloudflare.com/cdn-cgi/trace',
-  'https://www.msftconnecttest.com/connecttest.txt'
+  'https://www.google.com/favicon.ico',
+  'https://www.cloudflare.com/favicon.ico',
+  'https://www.microsoft.com/favicon.ico'
 ]);
 const SAME_ORIGIN_ENDPOINT = 'same-origin';
 let samples = [], timer = null, running = false, sent = 0, failed = 0, consecutiveLoss = 0, range = 60, lastPoints = [];
@@ -110,12 +110,7 @@ async function probe() {
     const endpoint = selectedEndpoint === SAME_ORIGIN_ENDPOINT ? new URL('probe.svg', window.location.href) : new URL(selectedEndpoint);
     if (selectedEndpoint !== SAME_ORIGIN_ENDPOINT && (endpoint.protocol !== 'https:' || !TRUSTED_ENDPOINTS.has(endpoint.href))) throw new Error('Untrusted endpoint rejected');
     endpoint.searchParams.set('_netwatch', Date.now());
-    if (selectedEndpoint === SAME_ORIGIN_ENDPOINT) {
-      await loadImageProbe(endpoint.href, controller.signal);
-    } else {
-      const response = await fetch(endpoint.href, { cache:'no-store', mode:'cors', signal:controller.signal });
-      if (!response.ok) throw new Error(`Probe returned HTTP ${response.status}`);
-    }
+    await loadImageProbe(endpoint.href, controller.signal);
     const value = performance.now() - started; samples.push({ok:true,value,time:Date.now()}); sent++; consecutiveLoss=0;
     if (value > 150) addEvent(`High latency: ${value.toFixed(0)} ms`, 'warn');
   } catch (error) {

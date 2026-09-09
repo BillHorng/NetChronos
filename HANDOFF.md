@@ -72,7 +72,7 @@ Canvas 圖表支援最近 60／120 筆樣本，包含：
 
 ## 安全與隱私控制
 
-UI 採下拉選單，程式會再次驗證端點：
+UI 採下拉選單，程式會再次驗證端點；所有端點皆以圖片載入量測，不依賴 Fetch CORS：
 
 - 僅允許 HTTPS。
 - 僅允許白名單中的完整網址。
@@ -81,15 +81,15 @@ UI 採下拉選單，程式會再次驗證端點：
 目前白名單：
 
 - 同網域 `probe.svg`（建議）：以圖片載入量測與網站同來源的回應時間，不受 Fetch API 的 CORS 限制。
-- `https://www.gstatic.com/generate_204`
-- `https://www.cloudflare.com/cdn-cgi/trace`
-- `https://www.msftconnecttest.com/connecttest.txt`
+- `https://www.google.com/favicon.ico`
+- `https://www.cloudflare.com/favicon.ico`
+- `https://www.microsoft.com/favicon.ico`
 
 事件紀錄、摘要與圖表提示均以 `textContent` 或 DOM 節點寫入。專案不使用 `eval`、動態載入第三方 JavaScript、帳密儲存或背景資料上傳。
 
 ## 已知限制與後續建議
 
-- 外部端點的 CORS 政策若變更，瀏覽器會將探測視為 Loss；正式使用應優先選擇同網域 `probe.svg`。
+- 圖片端點若被公司網路、DNS、防火牆或瀏覽器擴充套件封鎖，會被判為 Loss；正式使用應優先選擇同網域 `probe.svg`。
 - `navigator.connection` 並非所有瀏覽器支援；頻寬與連線類型可能不可用。
 - 若需要真實全網頻寬、ICMP Loss 或設備監控，需加入後端服務，並串接路由器 API、SNMP 或監測代理程式。
 - 正式環境建議設置自家 HTTPS 探測端點，減少對公開端點與第三方資料的依賴。
