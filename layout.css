@@ -28,7 +28,6 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 
 .dashboard-header .topbar {
-  padding: 17px 21px 14px;
   border: 0;
   background: transparent;
   clip-path: none;
@@ -44,7 +43,6 @@ input[type="number"]::-webkit-inner-spin-button {
 .help-panel[hidden] { display: none; }
 .help-panel h3 { margin: 0 0 5px; color: #effcff; font-size: 12px; }
 .dashboard-header .summary-strip { border: 0; border-top: 1px solid #24465a; background: transparent; box-shadow: none; }
-.dashboard-header .summary-strip article { min-height: 116px; }
 .endpoint-select { width: 100%; height: 35px; padding: 0 9px; border: 1px solid #294b60; background: #050e15; color: #d8edf8; font: 12px ui-monospace, monospace; outline: 0; }
 .chart-tooltip { display: none; position: absolute; z-index: 3; padding: 7px 9px; border: 1px solid #5d7378; background: #101719; color: #dceeee; font: 11px/1.55 ui-monospace, monospace; white-space: pre-line; pointer-events: none; box-shadow: 0 8px 18px #0008; }
 .loss-dot { background: #ef6565; box-shadow: 0 0 7px #ef6565; }
