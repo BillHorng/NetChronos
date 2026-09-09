@@ -25,7 +25,7 @@ function diagnosticText() {
   const avg = average(good), jitter = average(good.slice(1).map((v, i) => Math.abs(v - good[i])));
   const loss = sent ? failed / sent * 100 : 0;
   const selected = el('endpoint').value;
-  const endpointLabel = selected === SAME_ORIGIN_ENDPOINT ? new URL('probe.txt', window.location.href).href : selected || '-';
+  const endpointLabel = selected === SAME_ORIGIN_ENDPOINT ? new URL('probe.svg', window.location.href).href : selected || '-';
   return ['Network Diagnostic Summary', `Time: ${new Date().toLocaleString()}`, `Grade: ${el('gradeValue').textContent} (${el('gradeLabel').textContent})`, `Current latency: ${el('currentLatency').textContent} ms`, `Average latency: ${good.length ? avg.toFixed(1) : '-'} ms`, `Jitter: ${good.length > 1 ? jitter.toFixed(1) : '-'} ms`, `Loss: ${sent ? loss.toFixed(1) : '-'}% (${failed}/${sent} probes)`, `Consecutive loss: ${consecutiveLoss}`, `Endpoint: ${endpointLabel}`, `Browser network: ${el('connectionType').textContent}`].join('\n');
 }
 function updateSummary() { el('diagnosticSummary').textContent = diagnosticText(); }
@@ -52,6 +52,17 @@ function updateStartAvailability() {
   const enabled = (el('endpoint').value === SAME_ORIGIN_ENDPOINT || TRUSTED_ENDPOINTS.has(el('endpoint').value)) && !running;
   el('startButton').disabled = !enabled;
   el('startButton').title = enabled ? 'Start network monitoring' : 'Select a trusted test endpoint first';
+}
+function loadImageProbe(url, signal) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    const cleanup = () => signal?.removeEventListener('abort', onAbort);
+    const onAbort = () => { image.src = ''; cleanup(); reject(new DOMException('Probe aborted', 'AbortError')); };
+    image.onload = () => { cleanup(); resolve(); };
+    image.onerror = () => { cleanup(); reject(new Error('Same-origin probe image failed to load')); };
+    signal?.addEventListener('abort', onAbort, { once:true });
+    image.src = url;
+  });
 }
 function updateStats() {
   const good = samples.filter(s => s.ok).map(s => s.value);
@@ -96,11 +107,15 @@ async function probe() {
   const started = performance.now(), controller = new AbortController(), timeout = setTimeout(() => controller.abort(), Number(el('timeout').value || 5) * 1000);
   try {
     const selectedEndpoint = el('endpoint').value;
-    const endpoint = selectedEndpoint === SAME_ORIGIN_ENDPOINT ? new URL('probe.txt', window.location.href) : new URL(selectedEndpoint);
+    const endpoint = selectedEndpoint === SAME_ORIGIN_ENDPOINT ? new URL('probe.svg', window.location.href) : new URL(selectedEndpoint);
     if (selectedEndpoint !== SAME_ORIGIN_ENDPOINT && (endpoint.protocol !== 'https:' || !TRUSTED_ENDPOINTS.has(endpoint.href))) throw new Error('Untrusted endpoint rejected');
     endpoint.searchParams.set('_netwatch', Date.now());
-    const response = await fetch(endpoint.href, { cache:'no-store', mode:'cors', signal:controller.signal });
-    if (!response.ok) throw new Error(`Probe returned HTTP ${response.status}`);
+    if (selectedEndpoint === SAME_ORIGIN_ENDPOINT) {
+      await loadImageProbe(endpoint.href, controller.signal);
+    } else {
+      const response = await fetch(endpoint.href, { cache:'no-store', mode:'cors', signal:controller.signal });
+      if (!response.ok) throw new Error(`Probe returned HTTP ${response.status}`);
+    }
     const value = performance.now() - started; samples.push({ok:true,value,time:Date.now()}); sent++; consecutiveLoss=0;
     if (value > 150) addEvent(`High latency: ${value.toFixed(0)} ms`, 'warn');
   } catch (error) {

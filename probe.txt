@@ -1,1 +1,0 @@
-NetChronos same-origin connectivity probe.
